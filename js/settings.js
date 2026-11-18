@@ -200,7 +200,7 @@
     ZJ.UI.sheet(
       '<div class="sheet-h"><b>关于诸暨公交</b><button class="sheet-x" data-act="close-sheet"><svg class="ico"><use href="#i-close"/></svg></button></div>' +
       '<div class="sheet-body">' +
-      '<div class="about-row"><span>版本</span><b>v' + ZJ.CFG.VERSION + '（Android 包 1.3.0）</b></div>' +
+      '<div class="about-row"><span>版本</span><b>v' + ZJ.CFG.VERSION + '（Android 包 1.4.0）</b></div>' +
       '<div class="about-row"><span>包名</span><b>com.zhuji.bus.lite</b></div>' +
       '<div class="about-row"><span>数据</span><b>' + lines + ' 条线路 · ' + stations + ' 个站点</b></div>' +
       '<div class="about-row"><span>实时数据</span><b>诸暨公交官方接口</b></div>' +

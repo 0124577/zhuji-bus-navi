@@ -42,6 +42,7 @@
         status = r.remain === 0 ? '车辆已到站' : '还有 ' + r.remain + ' 站 · 约 ' + r.minutes + ' 分';
         cls = 'remind-live';
       } else if (r.state === 'error') { status = '实时数据中断'; }
+      else if (r.state === 'closed') { status = '线路已收班 · 明早恢复'; }
       else if (r.state === 'idle') { status = '当前无在线车辆'; }
       else if (r.state === 'passed') { status = '车辆已过站'; }
       return '<div class="remind-row"><span class="remind-badge">' + ZJ.esc(r.line) + '</span>' +
@@ -90,6 +91,7 @@
         if (r.done) st = '已提醒 · ' + ZJ.clock(new Date(r.doneAt || Date.now())).slice(0, 5);
         else if (r.state === 'tracking' && r.remain != null) st = mode.label + ' · 还有 ' + r.remain + ' 站';
         else if (r.state === 'error') st = mode.label + ' · 数据中断';
+        else if (r.state === 'closed') st = mode.label + ' · 线路已收班';
         return '<div class="rm-item"><span class="r-badge">' + ZJ.esc(r.line) + '</span>' +
           '<div class="r-body"><b>' + ZJ.esc(r.station) + ' · ' + (r.dirKey === 'up' ? '上行' : '下行') + '</b><span>' + ZJ.esc(st) + '</span></div>' +
           '<button class="r-del" data-act="remind-del" data-id="' + r.id + '"><svg class="ico"><use href="#i-trash"/></svg></button></div>';
