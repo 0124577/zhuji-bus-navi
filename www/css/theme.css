@@ -242,3 +242,56 @@
 .pick-stop{display:flex;align-items:center;min-height:50px;padding:13px 12px 13px 32px;font-size:15px;font-weight:600;color:var(--ink)}
 .pick-stop::before{width:7px;height:7px;left:15px;background:var(--pink-line)}
 .pick-empty{font-size:13px;color:var(--ink-3)}
+
+/* ================= v1.4.0：多方案卡片 / 运营状态（收班） ================= */
+.plan-list{display:block}
+.plan-card.sel{box-shadow:0 0 0 1.6px var(--pink),0 12px 26px rgba(var(--brand-rgb),.14)}
+.plan-head{display:flex;align-items:center;gap:6px;margin-bottom:7px}
+.plan-no{font-size:11px;font-weight:800;color:var(--ink-3);letter-spacing:.3px}
+.plan-tag{font-size:10.5px;font-weight:750;padding:2px 7px;border-radius:6px;background:#EAF9F2;color:#1B8F5C}
+.plan-tag.rec{background:var(--pink-soft);color:var(--pink-deep)}
+.plan-tag.gray{background:#F1F3F7;color:#8A90A0}
+.plan-tag.warn{background:#FFF3E2;color:#B96C10}
+.plan-hero.off{color:#8A90A0}
+.plan-hero.off .kind.gray{background:#F1F3F7;color:#8A90A0}
+.plan-metrics{display:flex;gap:6px;margin-top:9px}
+.plan-metrics .pm{flex:1;min-width:0;background:#FAFBFD;border-radius:10px;padding:6px 4px;text-align:center}
+.plan-metrics .pm b{display:block;font-size:13px;font-weight:800;color:var(--ink);line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.plan-metrics .pm span{display:block;font-size:10px;color:var(--ink-3);margin-top:1px}
+.plan-chain{display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-top:10px}
+.pl-chain{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:var(--ink-2);min-width:0}
+.pl-chain span:last-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:170px}
+.pl-arrow{color:var(--ink-3);font-size:12px;font-weight:700}
+.plan-body{margin-top:4px}
+.plan-peek{display:flex;align-items:center;justify-content:flex-start;gap:3px;margin-top:9px;font-size:11.5px;font-weight:650;color:var(--pink-deep)}
+.plan-peek .ico{width:12px;height:12px}
+.plan-open-btn{display:flex;align-items:center;justify-content:center;gap:4px;width:100%;height:40px;margin-top:10px;
+  border-radius:12px;background:var(--pink-soft);color:var(--pink-deep);font-size:13px;font-weight:750}
+.plan-open-btn .ico{width:14px;height:14px}
+/* 已收班 / 首班前：整卡降噪，不再显示剩余站数与预估到达 */
+.plan-card.off{background:#FBFBFD;box-shadow:none;border:1px dashed #E3E6EE}
+.plan-card.off .pm{background:#F4F6FA}
+.plan-tab.off{background:#FBFBFD;box-shadow:none;border-color:#ECEEF4}
+.plan-tab.off b{color:#8A90A0}
+.plan-tab.off.on{border-color:#C9CEDA;background:#F4F6FA}
+
+/* 近距步行建议 */
+.walk-card{display:flex;align-items:center;gap:10px;background:#EAF9F2;border:1px solid #CBEFDC;
+  border-radius:14px;padding:11px 12px;margin-bottom:10px}
+.walk-ico{width:32px;height:32px;flex:0 0 auto;border-radius:10px;background:#fff;display:flex;align-items:center;justify-content:center;color:#1B8F5C}
+.walk-ico .ico{width:17px;height:17px}
+.walk-txt{min-width:0}
+.walk-txt b{display:block;font-size:13px;font-weight:750;color:#146B45;line-height:1.35}
+.walk-txt span{display:block;font-size:11px;color:#3E8A66;margin-top:2px;line-height:1.4}
+
+/* 运营状态：大字条 / 竖向时间轴 / 站点页 / 线路页标签 */
+.pl-hl.off{background:linear-gradient(135deg,#98A0B0,#78808F);box-shadow:0 9px 22px rgba(80,88,104,.2)}
+.pl-hl-num.off{font-size:22px;letter-spacing:0;font-weight:800}
+.vt-eta.off{color:#8A90A0;background:#F1F3F7}
+.stat-empty.off b{color:#6F7686}
+.stat-empty.off{background:#FBFBFD;border:1px dashed #E3E6EE}
+.eta.off{background:#F1F3F7;color:#8A90A0}
+.tag.ok{background:#EAF9F2;color:#1B8F5C}
+.tag.warn{background:#FFF3E2;color:#B96C10}
+.tag.off{background:#F1F3F7;color:#8A90A0}
+.hot{font-style:normal;color:#C9741A;font-weight:750}

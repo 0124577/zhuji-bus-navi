@@ -48,8 +48,11 @@
     box.innerHTML = S.rows.map((r) => {
       const d = r.dir;
       const b = r.best;
+      /* 首末班校验：收班 / 首班前不显示剩余站数与到站时间 */
+      const svc = ZJ.Service.info(d, r.order);
       let eta = '<span class="eta none">—</span>';
-      if (b) eta = '<span class="eta">' + (b.atStation ? '已到站' : '约 ' + b.minutes + ' 分') + '</span>';
+      if (svc.off) eta = '<span class="eta off">' + (svc.state === 'closed' ? '已收班' : '首班未发') + '</span>';
+      else if (b) eta = '<span class="eta">' + (b.atStation ? '已到站' : '约 ' + b.minutes + ' 分') + '</span>';
       const buses = r.arr.slice(0, 3).map((x) =>
         '<div class="st-bus"><span class="live"></span><span class="plate">' + ZJ.esc(x.v.plate || '车辆') + '</span>' +
         '<span class="where">' + ZJ.esc(ZJ.RT.positionText(d, x.v)) + '</span>' +
@@ -58,8 +61,12 @@
         '<div class="st-line-h"><span class="leg-badge">' + ZJ.esc(r.line) + '</span>' +
         '<span class="rt"><b>往 ' + ZJ.esc(d.end) + '</b><span>首 ' + ZJ.esc(d.first) + ' · 末 ' + ZJ.esc(d.last) + ' · 本站第 ' + r.order + ' 站</span></span>' +
         eta + '</div>' +
-        (buses ? '<div class="st-buses">' + buses + '</div>' : '<div class="st-buses"><div class="st-bus"><span class="where">当前没有开往本站的车辆</span><span class="mins none">' +
-          (r.err ? ZJ.esc(r.err) : '稍后刷新') + '</span></div></div>') +
+        (svc.off
+          ? '<div class="st-buses"><div class="st-bus"><span class="where">' + ZJ.esc(ZJ.Service.note(svc)) +
+            ' · ' + ZJ.esc(ZJ.Service.resume(svc)) + '</span><span class="mins none">不在运营时段</span></div></div>'
+          : buses ? '<div class="st-buses">' + buses + '</div>'
+            : '<div class="st-buses"><div class="st-bus"><span class="where">当前没有开往本站的车辆</span><span class="mins none">' +
+              (r.err ? ZJ.esc(r.err) : '稍后刷新') + '</span></div></div>') +
         '</button>';
     }).join('');
   }

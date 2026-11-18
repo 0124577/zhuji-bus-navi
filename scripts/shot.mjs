@@ -22,6 +22,9 @@ await page.reload({ waitUntil: 'networkidle2' });
 await sleep(2200);
 /* 截图流程里不弹通知权限引导，避免遮挡页面 */
 await page.evaluate(() => { if (ZJ && ZJ.Settings) ZJ.Settings.promptPermIfNeeded = () => {}; });
+/* 固定到 09:00（运营时段内），否则夜间截图全是「已收班」 */
+await page.evaluate(() => ZJ.Clock.setFixed(9 * 60));
+await sleep(300);
 await page.screenshot({ path: `${OUT}/01-home.png` });
 
 /* 模拟实时车辆：等车站第 11 站，最近车辆在第 10 站驶向第 11 站，剩 1 站 */
@@ -86,16 +89,51 @@ await sleep(300);
 await page.type('#pkQ', '草塔停车场');
 await sleep(450);
 await page.evaluate(() => document.querySelector('#pkList .pick-stop').click());
-await sleep(1400);
+await sleep(2600);
+await page.evaluate(() => { const t = document.getElementById('toast'); if (t) t.classList.remove('on'); });
+await sleep(200);
 await page.screenshot({ path: `${OUT}/08-go-plans.png` });
 
 /* 方案详情（分段实时 + 竖向时间轴） */
-await page.evaluate(() => document.querySelector('.plan-cardlink').click());
+await page.evaluate(() => document.querySelector('.plan-open-btn').click());
 await sleep(1700);
 await page.screenshot({ path: `${OUT}/09-plan-live.png` });
 await page.evaluate(() => { document.querySelector('#page-plan').scrollTop = 620; });
 await sleep(600);
 await page.screenshot({ path: `${OUT}/10-plan-vertical.png` });
+
+/* 收班态（23:30）：不再显示剩余站数与到达时间 */
+await page.evaluate(() => { ZJ.Plan.close(); });
+await page.waitForFunction(() => !document.querySelector('.fullpage.on'));
+await sleep(500);
+await page.evaluate(() => { ZJ.Clock.setFixed(23 * 60 + 30); ZJ.Go.tick(); });
+await sleep(700);
+await page.screenshot({ path: `${OUT}/15-go-closed.png` });
+await page.evaluate(() => { ZJ.Clock.setFixed(9 * 60); ZJ.Go.tick(); });
+await sleep(400);
+
+/* 近距离起终点：步行提示 */
+await page.evaluate(() => ZJ.setTab('go'));
+await sleep(400);
+await page.evaluate(() => document.querySelector('[data-act="pick-from"]').click());
+await sleep(400);
+await page.evaluate(() => document.querySelector('.sheet-tab[data-tab="search"]').click());
+await sleep(300);
+await page.type('#pkQ', '西施殿公交首末站');
+await sleep(450);
+await page.evaluate(() => document.querySelector('#pkList .pick-stop').click());
+await sleep(500);
+await page.evaluate(() => document.querySelector('[data-act="pick-to"]').click());
+await sleep(400);
+await page.evaluate(() => document.querySelector('.sheet-tab[data-tab="search"]').click());
+await sleep(300);
+await page.type('#pkQ', '西施殿');
+await sleep(450);
+await page.evaluate(() => document.querySelector('#pkList .pick-stop').click());
+await sleep(2600);
+await page.evaluate(() => { const t = document.getElementById('toast'); if (t) t.classList.remove('on'); });
+await sleep(200);
+await page.screenshot({ path: `${OUT}/16-go-walk.png` });
 
 /* 首页提醒卡片 */
 await page.evaluate(() => { ZJ.Plan.close(); ZJ.setTab('home'); });

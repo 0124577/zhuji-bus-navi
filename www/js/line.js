@@ -58,7 +58,10 @@
   function renderInfo() {
     const d = S.dir;
     const price = S.detail && S.detail.up && Number(S.detail.up.totalPrice || 0) > 0 ? Number(S.detail.up.totalPrice) : 0;
+    const svc = ZJ.Service.info(d, 1);
     const tags = [
+      '<span class="tag ' + (svc.state === 'closed' || svc.state === 'before' ? 'off' : svc.state === 'lastGone' ? 'warn' : 'ok') + '">' +
+        ZJ.esc(ZJ.Service.tag(svc)) + '</span>',
       '<span class="tag"><svg class="ico"><use href="#i-clock"/></svg>首班 <b>' + ZJ.esc(d.first) + '</b></span>',
       '<span class="tag"><svg class="ico"><use href="#i-clock"/></svg>末班 <b>' + ZJ.esc(d.last) + '</b></span>',
       price ? '<span class="tag pink">票价 <b>¥' + price.toFixed(price % 1 ? 2 : 0) + '</b></span>' : '',
@@ -95,6 +98,16 @@
   function renderStat() {
     const box = $('lineStat');
     const d = S.dir;
+    const order = findStopIndex(S.station) + 1;
+    /* 首末班校验：收班 / 首班前不显示剩余站数与到站时间（每次刷新都重新判定） */
+    const svc = ZJ.Service.info(d, order);
+    if (svc.off) {
+      box.innerHTML = '<div class="stat-empty off"><b>' + (svc.state === 'closed' ? '已收班' : '首班未发') + '</b>' +
+        '<p>' + ZJ.esc(ZJ.Service.note(svc)) + ' · ' + ZJ.esc(ZJ.Service.resume(svc)) + '</p>' +
+        '<p style="font-size:10.5px;margin-top:6px">运营时段 ' + ZJ.esc(d.first) + ' – ' + ZJ.esc(d.last) +
+        ' · 收班后不再显示剩余站数与到站时间</p></div>';
+      return;
+    }
     if (S.err) {
       box.innerHTML =
         '<div class="stat-empty"><b>实时车辆暂不可用</b>' +
@@ -106,10 +119,8 @@
       box.innerHTML = '<div class="stat-empty"><b>正在获取车辆位置…</b><p>' + ZJ.esc(d.first) + ' – ' + ZJ.esc(d.last) + ' 运营</p></div>';
       return;
     }
-    const order = findStopIndex(S.station) + 1;
     const arr = ZJ.RT.arrivalsTo(d, S.vehicles, order);
     if (!arr.length) {
-      const inService = isInService(d);
       const next = nextPlanned(order);
       if (ZJ.Api.mode === 'static') {
         box.innerHTML =
@@ -118,11 +129,11 @@
         return;
       }
       let extra;
-      if (!inService) extra = '当前时段已收班（' + d.first + ' – ' + d.last + '）';
+      if (svc.state === 'lastGone') extra = '末班车已从起点发出（末班 ' + d.last + '），本站暂无车辆';
       else if (next) extra = '下一班计划 ' + next.dep + ' 从起点发车 · 约 ' + next.eta + ' 到本站';
       else extra = '暂时没有车辆开往本站，稍后自动刷新';
       box.innerHTML =
-        '<div class="stat-empty"><b>' + (inService ? '此刻暂无在线车辆' : '已收班') + '</b>' +
+        '<div class="stat-empty"><b>此刻暂无在线车辆</b>' +
         '<p>' + ZJ.esc(extra) + '</p>' +
         '<p style="font-size:10.5px;margin-top:6px">' + (next ? '静态时刻表估算，仅供参考' : '数据每 20 秒自动刷新') + '</p></div>';
       return;
@@ -174,16 +185,19 @@
     const d = S.dir;
     const selOrder = findStopIndex(S.station) + 1;
     const hasLive = S.vehicles.length > 0 && !S.err;
+    const svc = ZJ.Service.info(d, selOrder);
     $('stopList').innerHTML = ZJ.VTimeline.html(d, {
       selected: selOrder,
       vehicles: S.vehicles,
+      off: svc.off,
+      offTxt: svc.state === 'before' ? '首班未发' : '已收班',
       err: S.err,
       line: S.line.name,
       dirKey: d.key,
       rowAct: 'set-stop',
       bellAct: 'stop-remind'
     });
-    $('stopHint').textContent = hasLive ? '实时到站 · 点站点设为等车站' : '静态站序 · 点站点设为等车站';
+    $('stopHint').textContent = svc.off ? '已过运营时段 · 点站点设为等车站' : hasLive ? '实时到站 · 点站点设为等车站' : '静态站序 · 点站点设为等车站';
   }
 
   /* 实时能力降级提示：接口失效 / 静态模式时明确告知，并提供重试 */

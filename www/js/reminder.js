@@ -72,8 +72,22 @@
       if (ticking) return;
       if (document.visibilityState === 'hidden') return;
       if (ZJ.Api.mode === 'static') return;
-      const act = Reminder.active();
-      if (!act.length) return;
+      let changed = false;
+      const act = Reminder.active().filter((r) => {
+        const dir = ZJ.Data.dirs.get(r.dirId);
+        const target = dir && dir.stops.find((s) => s.name === r.station);
+        if (!target) return true;
+        /* 已收班 / 首班前：不请求接口，直接标记收班，避免展示过期的剩余站数 */
+        if (ZJ.Service.info(dir, target.o).off) {
+          if (r.state !== 'closed') changed = true;
+          r.state = 'closed';
+          r.remain = null;
+          r.minutes = null;
+          return false;
+        }
+        return true;
+      });
+      if (!act.length) { if (changed) emit(); return; }
       ticking = true;
       try {
         const byDir = new Map();
@@ -102,6 +116,15 @@
             r.error = '';
             const target = dir.stops.find((s) => s.name === r.station);
             if (!target) { r.state = 'error'; r.error = '站点不在该线路'; return; }
+            /* 首末班校验：收班 / 首班前不再盯着剩余站数，也不会触发提醒 */
+            const svc = ZJ.Service.info(dir, target.o);
+            if (svc.off) {
+              r.state = 'closed';
+              r.remain = null;
+              r.minutes = null;
+              r.error = '';
+              return;
+            }
             const arr = ZJ.RT.arrivalsTo(dir, list, target.o);
             const nearest = arr[0];
             if (!nearest) {

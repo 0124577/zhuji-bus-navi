@@ -29,10 +29,20 @@
     const x = d || new Date();
     return pad(x.getHours()) + ':' + pad(x.getMinutes()) + ':' + pad(x.getSeconds());
   };
-  ZJ.nowMin = function () {
-    const d = new Date();
-    return d.getHours() * 60 + d.getMinutes();
+  /* 时钟：统一出口，测试可固定当前分钟数（ZJ.Clock.setFixed(540) → 09:00） */
+  ZJ.Clock = {
+    fixed: null,
+    setFixed(m) {
+      ZJ.Clock.fixed = m == null ? null : ((Math.round(m) % 1440) + 1440) % 1440;
+      return ZJ.Clock.fixed;
+    },
+    nowMin() {
+      if (ZJ.Clock.fixed != null) return ZJ.Clock.fixed;
+      const d = new Date();
+      return d.getHours() * 60 + d.getMinutes();
+    }
   };
+  ZJ.nowMin = function () { return ZJ.Clock.nowMin(); };
   ZJ.minHM = function (m) {
     const v = ((Math.round(m) % 1440) + 1440) % 1440;
     return pad(Math.floor(v / 60)) + ':' + pad(v % 60);
@@ -83,7 +93,7 @@
     STATION_POLL: 30000,
     REMIND_POLL: 15000,
     MAX_FAV: 30,
-    VERSION: '1.3.0'
+    VERSION: '1.4.0'
   };
 
   /* ================= 偏好设置（主题 / 提示音 / 震动 / 音量 / 轮询） ================= */
@@ -366,18 +376,109 @@
   };
 
   /* ================= 运营时段判断 ================= */
-  ZJ.isInService = function (dir) {
-    if (!dir) return true;
-    const toMin = (t) => {
-      const m = String(t || '').match(/(\d{1,2}):(\d{2})/);
-      return m ? +m[1] * 60 + +m[2] : 0;
-    };
-    const f = toMin(dir.first), l = toMin(dir.last);
-    if (!f && !l) return true;
-    const now = ZJ.nowMin();
-    if (l < f) return now >= f || now <= l;
-    return now >= f - 10 && now <= l + 45;
+  /* ================= 首末班运营状态（每次渲染都按当前时间重算） =================
+     数据来源：官方静态快照里每条线路每个方向的首班 / 末班时间（dir.first / dir.last）。
+     口径：
+       1. 末班车从起点站发出后仍会沿途载客，所以「本站已无末班车」的时刻 =
+          末班发车时间 + 起点站到本站的行驶时间（用静态里程与平均车速估算）。
+       2. 首班车同理：首班尚未发车时本站也不会有车；首班前 15 分钟内按「即将发车」处理。
+       3. 跨零点线路（末班 < 首班，如 22:00–01:30）单独判定。
+       4. 缺首末班数据时返回 unknown，界面按旧逻辑处理（不做拦截）。
+     状态：
+       running   正常运营
+       lastGone  末班车已从起点发出，但还没有驶过本站（仍可能坐到，可显示剩余站数）
+       closed    已收班（本站今日不会再有车）
+       before    首班未发
+       unknown   无首末班数据
+  */
+  const Service = {
+    toMin(t) {
+      const m = String(t == null ? '' : t).match(/(\d{1,2}):(\d{2})/);
+      return m ? +m[1] * 60 + +m[2] : null;
+    },
+    /* 某方向、某上车站（1 基序号，缺省为首站）的可乘车时间窗 */
+    window(dir, order) {
+      const first = Service.toMin(dir && dir.first);
+      const last = Service.toMin(dir && dir.last);
+      const n = dir && dir.stops ? dir.stops.length : 0;
+      const o = Math.max(1, Math.min(n || 1, Number(order) || 1));
+      const ride = n > 1 ? ZJ.Data.rideMinutes(dir, 1, o) : 0;
+      return {
+        first: first,
+        last: last,
+        lastBoard: last == null ? null : last + ride,
+        ride: ride,
+        order: o,
+        firstTxt: (dir && dir.first) || '—',
+        lastTxt: (dir && dir.last) || '—'
+      };
+    },
+    /* 核心判定：任何一次渲染 / 刷新都重新调用，不缓存结果 */
+    info(dir, order) {
+      const w = Service.window(dir, order);
+      const now = ZJ.nowMin();
+      let state = 'unknown';
+      if (w.first != null && w.lastBoard != null) {
+        const grace = 1; /* 允许 1 分钟误差，避免整点瞬间抖动 */
+        if (w.lastBoard < w.first) {
+          /* 跨零点：首班之前、末班车驶过本站之后才算收班 */
+          state = (now >= w.first || now <= w.lastBoard + grace) ? 'running' : 'closed';
+        } else if (now > w.lastBoard + grace) {
+          state = 'closed';
+        } else if (now < w.first - 15) {
+          state = 'before';
+        } else if (now > w.last) {
+          state = 'lastGone';
+        } else {
+          state = 'running';
+        }
+      }
+      return {
+        state: state,
+        now: now,
+        first: w.first,
+        last: w.last,
+        lastBoard: w.lastBoard,
+        firstTxt: w.firstTxt,
+        lastTxt: w.lastTxt,
+        order: w.order,
+        /* 不在运营时段：不再渲染剩余站数与预估到站时间 */
+        off: state === 'closed' || state === 'before'
+      };
+    },
+    isOpen(dir, order) {
+      const s = Service.info(dir, order).state;
+      return s === 'running' || s === 'lastGone' || s === 'unknown';
+    },
+    isClosed(dir, order) { return Service.info(dir, order).state === 'closed'; },
+    /* 短标签 */
+    tag(info) {
+      const s = info && info.state;
+      if (s === 'closed') return '已收班';
+      if (s === 'before') return '首班未发';
+      if (s === 'lastGone') return '末班车已发出';
+      if (s === 'unknown') return '运营时段未知';
+      return '运营中';
+    },
+    /* 收班 / 首班前的说明文字（含运营时段与恢复时间） */
+    note(info) {
+      if (!info) return '';
+      if (info.state === 'closed') return '末班 ' + info.lastTxt + ' 已发出';
+      if (info.state === 'before') return '首班 ' + info.firstTxt + ' 发车';
+      return '运营时段 ' + info.firstTxt + ' – ' + info.lastTxt;
+    },
+    /* 收班后何时恢复：末班已过 → 明日首班；首班前 → 今日首班 */
+    resume(info) {
+      if (!info) return '';
+      if (info.state === 'closed') return '明日首班 ' + info.firstTxt;
+      if (info.state === 'before') return '今日首班 ' + info.firstTxt;
+      return '';
+    }
   };
+  ZJ.Service = Service;
+
+  /* 兼容旧调用：方向整体是否在运营（按首站口径） */
+  ZJ.isInService = function (dir, order) { return Service.isOpen(dir, order); };
 
   /* ================= 横向站点时间轴（竖屏 · 竖排站名 · 左右滚动） =================
      html(dir, opt) 返回 .tl 内部 HTML；mount(dir, opt) 负责挂载、设宽并滚动到焦点站。
@@ -482,7 +583,8 @@
   const VTimeline = {
     html(dir, opt) {
       opt = opt || {};
-      const vehicles = opt.vehicles || [];
+      const offTxt = opt.off ? (opt.offTxt || '已收班') : '';
+      const vehicles = opt.off ? [] : (opt.vehicles || []);
       const sel = opt.selected || 0;
       const board = opt.board || 0;
       const alight = opt.alight || 0;
@@ -513,9 +615,11 @@
             (v.arrived ? '车辆停靠本站' : '车辆正在本站 → 下一站') + (here.length > 1 ? ' ×' + here.length : '') + '</span>';
         }
 
-        /* 预计到站：本站已有车辆时只显示车辆徽标，避免重复 */
+        /* 预计到站：本站已有车辆时只显示车辆徽标，避免重复；不在运营时段一律不显示预估 */
         let eta = '';
-        if (hasLive && here.length) {
+        if (offTxt) {
+          eta = '<span class="vt-eta off">' + ZJ.esc(offTxt) + '</span>';
+        } else if (hasLive && here.length) {
           eta = '';
         } else if (hasLive) {
           const arr = ZJ.RT.arrivalsTo(dir, vehicles, o);
